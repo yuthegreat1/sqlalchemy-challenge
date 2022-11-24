@@ -1,5 +1,6 @@
 #import dependencies
 from flask import Flask
+from flask import jsonify
 import numpy as np 
 import datetime as dt 
 
@@ -40,12 +41,22 @@ def welcome():
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     #link session from python to db
-    latest_date = session.query(measurement.date).order_by(measurement.date.desc()).first()
-    year_from = dt.date(2017,8,23) - dt.timedelta(days=365)
+    session = Session(engine)
 
-    annual_prcp = session.query(measurement.date, measurement.prcp).filter(measurement.date >= year_from, measurement.prcp != None).order_by(measurement.date).all()
-    return jsonify(dict(annual_prcp))
+    """Return a list of all precipitation and date"""
+    # Query all precipitation and date
+    results = session.query(measurement.date,measurement.prcp).all()
 
+    session.close()
+
+    #Convert list of tuples into dict
+    all_prcp=[]
+    for date,prcp in results:
+        prcp_dict = {}
+        prcp_dict[date] = prcp
+        all_prcp.append(prcp_dict)
+
+    return jsonify(all_prcp)
 @app.route("/api/v1.0/stations")
 def stations():
     #link session from python to db
@@ -68,8 +79,8 @@ def tempartureobs():
 def calc_temps(start, end):
     #link session from python to db
     session = Session(engine)
-    results=session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
-                filter(Measurement.date >= start).filter(Measurement.date <= end).all()
+    results=session.query(func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)).\
+                filter(measurement.date >= start).filter(measurement.date <= end).all()
     session.close()
     tempobs={}
     tempobs["Min_Temp"]=results[0][0]
@@ -81,8 +92,8 @@ def calc_temps(start, end):
 def calc_temps_sd(start):
     #link session from python to db
     session = Session(engine)
-    results=session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
-                filter(Measurement.date >= start).all()
+    results=session.query(func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)).\
+                filter(measurement.date >= start).all()
     session.close()
     tempobs={}
     tempobs["Min_Temp"]=results[0][0]
